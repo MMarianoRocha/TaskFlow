@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 app = FastAPI(
-    title="Task App Group",
+    title="TaskFlow",
     version="0.1.0",
     description="Aplicação web local para gerenciamento de tarefas colaborativas"
 )
