@@ -1,22 +1,21 @@
-from sqlalchemy import create_engine
+from collections.abc import AsyncGenerator
+from sqlalchemy.ext.asyncio import AsyncSession,async_sessionmaker ,create_async_engine
 from sqlalchemy.orm import sessionmaker
-from .base import Base
-from models.user import User
-from models.task import Task
+from sqlalchemy import create_engine
+from database.base import Base
 
-DATABASE_URL = "sqlite:///./task_app.db"
 
-engine = create_engine(DATABASE_URL)
+DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
-SessionLocal = sessionmaker(engine, autocommit=False, autoflush=False)
+engine = create_async_engine(DATABASE_URL)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-Base.metadata.create_all(bind=engine)
 
-with SessionLocal() as session:
-    # user = session.add(Task(title="Bumbarabaum", description="Tarefa de teste", completed=False, user_id=2))
-    # session.commit()
-    user = session.query(User).filter_by(name="Matheus").first()
-    if user:
-        print(f"Usuário encontrado: {user.name}")
-        for task in user.tasks:
-            print(f"- Tarefa: {task.title}, Concluída: {task.completed}")
+async def create_db_and_tables():
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
