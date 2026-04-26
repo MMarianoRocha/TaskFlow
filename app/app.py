@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.concurrency import asynccontextmanager
 from schemas.task import TaskCreate, TaskResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="Task API",
+    title="TaskFlow API",
     description="API para gerenciamento de tarefas em conjunto com FastAPI",
     version="1.0.0",
     lifespan=lifespan
