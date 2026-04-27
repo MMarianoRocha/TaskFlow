@@ -11,13 +11,13 @@ from services.auth_user import user_login, user_sign_in
 router = APIRouter(prefix="/users", tags=["users"])
 
 # region Get
-@router.get("") # GET /users
+@router.get("", response_model=list[UserResponse]) # GET /users
 async def get_all_users(limit: int = 10, db: AsyncSession = Depends(get_async_session)):
     result = await db.execute(select(User).limit(limit))
     users = result.scalars().all()
     return users
 
-@router.get("/{id}")
+@router.get("/{id}", response_model=UserResponse)
 async def get_user(id: int, db: AsyncSession = Depends(get_async_session)):
     result = await db.execute(select(User).where(User.id == id))
     user = result.scalars().first()
