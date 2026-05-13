@@ -1,6 +1,4 @@
-from fastapi import APIRouter, Depends
-from fastapi import HTTPException
-from fastapi.concurrency import asynccontextmanager
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.user import User
@@ -29,7 +27,8 @@ async def get_user(id: int, db: AsyncSession = Depends(get_async_session)):
 # region Post
 @router.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate, db: AsyncSession = Depends(get_async_session)):
-    existing = await user_login(user.name, user.password, db)
+    result = await db.execute(select(User).where(User.name == user.name))
+    existing = result.scalars().first()
     if existing:
         raise HTTPException(status_code=400, detail="Usuário já existe")
     new_user = await user_sign_in(user.name, user.password, db)

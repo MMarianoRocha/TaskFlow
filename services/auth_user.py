@@ -2,6 +2,7 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.user import User
+from fastapi import HTTPException, status
 
 pwd_context = CryptContext(schemes=["bcrypt"])
 
@@ -20,3 +21,12 @@ async def user_login(name: str, password: str, db: AsyncSession):
     if pwd_context.verify(password, user.password):
         return user
     return None
+
+async def get_current_user(name: str, password: str, db: AsyncSession):
+    user = await user_login(name, password, db)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciais inválidas",
+        )
+    return user

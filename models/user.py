@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 from database.base import Base
 
@@ -8,4 +8,4 @@ class User(Base):
     name = Column(String, index=True, unique=False, nullable=False)
     password = Column(String, nullable=False)
 
-    tasks = relationship("Task", back_populates="user")
+    pomodoros = relationship("Pomodoro", back_populates="user")
