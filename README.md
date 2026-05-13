@@ -1,71 +1,103 @@
 # PomodoroHub
 
-## Visão Geral
+## Overview
 
-PomodoroHub é uma API FastAPI que gerencia sessões de Pomodoro com login de usuário.
-O frontend é uma interface desktop em PySide6 que consulta o backend e exibe um overlay de presença.
+PomodoroHub is a FastAPI backend for managing Pomodoro sessions across multiple users.
+The desktop client is built with PySide6 and queries the backend to display a live overlay
+showing who is currently in an active Pomodoro session.
 
-O projeto está preparado para rodar o backend em uma máquina separada e o cliente em outros PCs.
+The project is designed to run the backend on one dedicated machine and the desktop client
+on multiple user PCs.
 
-## Estrutura principal
+## Architecture
 
-- `main.py` - entrypoint para iniciar o backend com Uvicorn
-- `app/app.py` - definição da aplicação FastAPI e lifespan para criar banco
-- `desktop_app.py` - cliente desktop PySide6
-- `run_server.sh` - script de inicialização do servidor
-- `run_client.sh` - script de inicialização do cliente apontando para o servidor
-- `requirements.txt` - dependências do projeto
+- `main.py` - server entrypoint that starts Uvicorn
+- `app/app.py` - FastAPI application with startup lifecycle and database initialization
+- `desktop_app.py` - desktop client UI with login, Pomodoro controls, and overlay
+- `run_server.sh` - convenient server startup script
+- `run_client.sh` - convenient client startup script
+- `requirements.txt` - Python dependency list
 
-## Instalação
+## Installation
 
-1. Crie e ative o ambiente virtual:
+1. Create and activate a Python virtual environment:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-2. Instale dependências:
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Rodando o backend em uma máquina separada
+## Running the backend on a separate machine
 
-No servidor dedicado, execute:
+On the dedicated server machine:
 
 ```bash
 ./run_server.sh
 ```
 
-Isso expõe a API na porta `8000` em todas as interfaces (`0.0.0.0`).
+This starts the API on `0.0.0.0:8000`, making it accessible from other computers on the network.
 
-### Acessando pelo cliente
+### Running the desktop client on user machines
 
-No PC de cada usuário, rode:
+On each user PC:
 
 ```bash
-./run_client.sh http://<IP-do-servidor>:8000
+./run_client.sh http://<SERVER_IP>:8000
 ```
 
-ou configure a variável de ambiente:
+Alternatively, set the environment variable:
 
 ```bash
-export POMODORO_HUB_API_URL="http://<IP-do-servidor>:8000"
+export POMODORO_HUB_API_URL="http://<SERVER_IP>:8000"
 ./run_client.sh
 ```
 
-## Observações
+## Authentication and local persistence
 
-- O backend deve estar acessível na rede pelo IP do servidor.
-- O cliente usa `POMODORO_HUB_API_URL` ou o argumento `--api-url` para se conectar.
-- Cada usuário pode iniciar/encerrar Pomodoro e ver no overlay quem está em sessão ativa.
+PomodoroHub uses a local SQLite database (`./test.db`) to store user and session data.
 
-## Endpoints principais
+- Users register with a username and password.
+- Passwords are never stored in plain text.
+- Password hashing is performed using `passlib` with the `bcrypt` algorithm.
+- The hashed password is saved in the `usuarios` table in the local database.
+- Login verifies the provided password against the stored bcrypt hash.
+
+This adds an extra layer of complexity and security by ensuring that
+sensitive credentials are protected even when stored locally.
+
+## How login works
+
+1. The client sends `POST /users/register` with `name` and `password`.
+2. The backend hashes the password and creates a new user record.
+3. To sign in, the client sends `POST /users/login` with the same credentials.
+4. The backend checks the username and validates the password hash.
+5. If successful, the user may start or stop Pomodoro sessions.
+
+## Session management
+
+- `POST /pomodoro/start` starts a new Pomodoro session for the authenticated user.
+- `POST /pomodoro/stop` stops the current active session.
+- `GET /pomodoro/active` returns all currently active Pomodoro sessions.
+
+The desktop client polls this endpoint regularly so every connected user can see who
+is actively working in real time.
+
+## Main API endpoints
 
 - `POST /users/register`
 - `POST /users/login`
 - `POST /pomodoro/start`
 - `POST /pomodoro/stop`
 - `GET /pomodoro/active`
+
+## Notes
+
+- The backend must be reachable via network from each client machine.
+- The client uses `POMODORO_HUB_API_URL` or `--api-url` to connect to the backend.
+- Active Pomodoro sessions are visible to all running clients.
