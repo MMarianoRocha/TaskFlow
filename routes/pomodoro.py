@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -18,17 +18,36 @@ from services.auth_user import get_current_user
 router = APIRouter(prefix="/pomodoro", tags=["pomodoro"])
 
 
+async def expire_finished_pomodoros(db: AsyncSession) -> None:
+    now = datetime.utcnow()
+    result = await db.execute(select(Pomodoro).where(Pomodoro.active.is_(True)))
+    active_sessions = result.scalars().all()
+
+    changed = False
+    for session in active_sessions:
+        finished_at = session.started_at + timedelta(minutes=session.duration)
+        if finished_at <= now:
+            session.active = False
+            session.status = "finished"
+            session.ended_at = finished_at
+            changed = True
+
+    if changed:
+        await db.commit()
+
+
 @router.post("/start", response_model=PomodoroResponse)
 async def start_pomodoro(
     payload: PomodoroControl,
     db: AsyncSession = Depends(get_async_session),
 ):
     current_user = await get_current_user(payload.name, payload.password, db)
+    await expire_finished_pomodoros(db)
 
     result = await db.execute(
         select(Pomodoro).where(
             Pomodoro.user_id == current_user.id,
-            Pomodoro.active == True,
+            Pomodoro.active.is_(True),
         )
     )
     existing = result.scalars().first()
@@ -58,7 +77,7 @@ async def stop_pomodoro(
     result = await db.execute(
         select(Pomodoro).where(
             Pomodoro.user_id == current_user.id,
-            Pomodoro.active == True,
+            Pomodoro.active.is_(True),
         )
     )
     pomodoro = result.scalars().first()
@@ -75,8 +94,9 @@ async def stop_pomodoro(
 
 @router.get("/active", response_model=list[PomodoroActiveResponse])
 async def get_active_pomodoros(db: AsyncSession = Depends(get_async_session)):
+    await expire_finished_pomodoros(db)
     result = await db.execute(
-        select(Pomodoro).options(selectinload(Pomodoro.user)).where(Pomodoro.active == True)
+        select(Pomodoro).options(selectinload(Pomodoro.user)).where(Pomodoro.active.is_(True))
     )
     active_sessions = result.scalars().all()
     return [
