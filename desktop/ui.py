@@ -23,7 +23,8 @@ from desktop.api_client import PomodoroApiClient
 from desktop.session import get_session_end, remaining_time_text, session_end_from_data
 
 
-API_BASE_URL = os.getenv("POMODORO_HUB_API_URL", "http://127.0.0.1:8000")
+DEFAULT_API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = os.getenv("POMODORO_HUB_API_URL", DEFAULT_API_BASE_URL)
 
 
 class OverlayWindow(QWidget):
@@ -167,14 +168,22 @@ class PomodoroDesktopApp(QWidget):
     def __init__(self, api_base_url: str = API_BASE_URL):
         super().__init__()
         self.setWindowTitle("PomodoroHub")
-        self.setFixedSize(320, 400)
+        self.setFixedSize(320, 450)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        self.settings = QSettings("PomodoroHub", "DesktopClient")
 
-        self.api = PomodoroApiClient(base_url=api_base_url)
+        saved_api_base_url = self.settings.value("server/api_url", "", type=str)
+        initial_api_base_url = api_base_url or saved_api_base_url or API_BASE_URL
+        self.api = PomodoroApiClient(base_url=initial_api_base_url)
         self.logged_user = None
         self.logged_password = None
         self.session_end = None
+
+        self.server_url_input = QLineEdit()
+        self.server_url_input.setPlaceholderText("http://IP-DO-SERVIDOR:8000")
+        self.server_url_input.setText(initial_api_base_url)
+        self.server_url_input.editingFinished.connect(self.update_api_url_from_input)
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Usuário")
@@ -231,6 +240,8 @@ class PomodoroDesktopApp(QWidget):
 
         self.login_widget = QWidget()
         login_layout = QVBoxLayout(self.login_widget)
+        login_layout.addWidget(QLabel("Servidor"))
+        login_layout.addWidget(self.server_url_input)
         login_layout.addWidget(QLabel("Usuário"))
         login_layout.addWidget(self.username_input)
         login_layout.addWidget(QLabel("Senha"))
@@ -278,6 +289,15 @@ class PomodoroDesktopApp(QWidget):
         self._countdown_timer.timeout.connect(self.update_countdown)
         self._countdown_timer.start(1000)
 
+    def update_api_url_from_input(self) -> None:
+        api_base_url = self.server_url_input.text().strip().rstrip("/")
+        if not api_base_url:
+            api_base_url = DEFAULT_API_BASE_URL
+            self.server_url_input.setText(api_base_url)
+
+        self.api = PomodoroApiClient(base_url=api_base_url)
+        self.settings.setValue("server/api_url", api_base_url)
+
     def show_error(self, message: str, login_phase: bool = False) -> None:
         if login_phase:
             self.login_status_label.setText(f"Erro: {message}")
@@ -290,6 +310,7 @@ class PomodoroDesktopApp(QWidget):
             raise RuntimeError("Usuário não autenticado")
 
     def handle_login(self) -> None:
+        self.update_api_url_from_input()
         name = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
@@ -307,6 +328,7 @@ class PomodoroDesktopApp(QWidget):
             self.show_error(str(error), login_phase=True)
 
     def handle_register(self) -> None:
+        self.update_api_url_from_input()
         name = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
@@ -448,7 +470,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="PomodoroHub client")
     parser.add_argument(
         "--api-url",
-        default=os.getenv("POMODORO_HUB_API_URL", API_BASE_URL),
+        default=os.getenv("POMODORO_HUB_API_URL", ""),
         help="URL do backend PomodoroHub (ex: http://192.168.0.10:8000)",
     )
     args = parser.parse_args()

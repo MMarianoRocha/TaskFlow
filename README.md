@@ -14,49 +14,69 @@ on multiple user PCs.
 - `main.py` - server entrypoint that starts Uvicorn
 - `app/app.py` - FastAPI application with startup lifecycle and database initialization
 - `desktop_app.py` - desktop client UI with login, Pomodoro controls, and overlay
-- `run_server.sh` - convenient server startup script
-- `run_client.sh` - convenient client startup script
+- `build_windows.bat` - builds the Windows server and client executables
+- `run_server.bat` - starts the server from source on Windows
+- `run_client.bat` - starts the desktop app from source on Windows
 - `requirements.txt` - Python dependency list
 
 ## Installation
 
 1. Create and activate a Python virtual environment:
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
+```bat
+py -3 -m venv .venv
+.venv\Scripts\activate
 ```
 
 2. Install dependencies:
 
-```bash
+```bat
 pip install -r requirements.txt
 ```
 
-## Running the backend on a separate machine
+## Building the Windows executables
+
+On a Windows development machine:
+
+```bat
+build_windows.bat
+```
+
+The generated files will be:
+
+- `dist\PomodoroHubServer.exe`
+- `dist\PomodoroHubClient.exe`
+
+## Running the backend on the server machine
 
 On the dedicated server machine:
 
-```bash
-./run_server.sh
+```bat
+dist\PomodoroHubServer.exe
 ```
 
 This starts the API on `0.0.0.0:8000`, making it accessible from other computers on the network.
+Users should connect to the server machine's LAN IP, for example `http://192.168.0.10:8000`,
+not `http://0.0.0.0:8000`.
+
+If another PC cannot connect, allow `PomodoroHubServer.exe` or TCP port `8000` in Windows Firewall.
 
 ### Running the desktop client on user machines
 
 On each user PC:
 
-```bash
-./run_client.sh http://<SERVER_IP>:8000
+```bat
+dist\PomodoroHubClient.exe
 ```
 
-Alternatively, set the environment variable:
+In the desktop app login screen, fill the `Servidor` field with:
 
-```bash
-export POMODORO_HUB_API_URL="http://<SERVER_IP>:8000"
-./run_client.sh
+```text
+http://<SERVER_IP>:8000
 ```
+
+The client saves the server URL after the first login/register attempt, so the user does not
+need to type it every time.
 
 ## Authentication and local persistence
 
@@ -99,5 +119,5 @@ is actively working in real time.
 ## Notes
 
 - The backend must be reachable via network from each client machine.
-- The client uses `POMODORO_HUB_API_URL` or `--api-url` to connect to the backend.
+- The client uses the saved `Servidor` value, `POMODORO_HUB_API_URL`, or `--api-url` to connect to the backend.
 - Active Pomodoro sessions are visible to all running clients.
